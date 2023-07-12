@@ -1,0 +1,560 @@
+---
+title: "MULTIPLE LINEAR REGRESSION FOR STOCK PRICE: NATIONAL BANK OF CANADA"
+author: "Project collaborators: Ritah Nabaweesi,Laura Assylgazhina, Olayinka Mogaji"
+date: "2023-03-26"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+# INTRODUCTION  
+
+## 1.1.   Motivation
+
+### 1.1.1. Context
+
+The stock market refers to the several exchanges where the buying and selling of stocks of publicly held companies. The participants(investors) in the stock market form part of the stock markets and the main reason for participation gravitates around growing their money or preserving the value of the money that they have. The decision to buy or sell a particular stock at a given time is influenced by various factors, among which is the prevailing price of the stock at the time of participation. This report aims to understand the influence of the identified independent variables on the closing price of the stock.
+
+### 1.1.2. Problem
+
+From the various economic theories, it’s general knowledge that the price of any commodity is influenced by the demand and supply forces within the marketplace. A number of studies have been done to explain the influence of various factors however there is no standard equation that tells of how the stock price will behave in response to the various changes in the marketplace. This study seeks to understand the factors that influence the stock price for National Bank of Canada.  
+National Bank of Canada provides various financial products and services to retail, commercial, corporate, and institutional clients in Canada and internationally. It operates through four segments: Personal and Commercial, Wealth Management, Financial Markets, and U.S. Specialty Finance and International.
+
+## 1.2.   Objectives
+
+### 1.2.1. Overview
+
+The main objective of this project was to understand the fundamental and technical factors that influence the stock price for National Bank of Canada based on historical performance data. 
+
+### 1.2.2     Goals & Research Questions
+The goal of the data modelling is to unearth the influence of the various technical and fundamental variables with the price of the stock. The research set out to answer the major question;
+What is the best model that explains the stock price given a set of fundamental and technical factors?
+The fundamental factors are economic and financial factors that influence the intrinsic value of an investment. Examples of such factors include the Consumer price index (CPI), Earnings per share (EPS) for the company, and the Profit earnings ratio (P/E). 
+The technical factors explain the trading activity of the stock. Price, volume movements are technical indicators that were investigated in this research.
+
+# 2. METHODOLOGY
+
+## 2.1 Data 
+
+The data were collected in a CSV format from Open Data sources. 
+The stock price information for National Bank of Canada, the exchange rates and market index  was sourced from Yahoo finance (National Bank of Canada (NA.TO) Stock Historical Prices & Data, n.d.). The historical earnings per share data was sourced from Macrotrends (National Bank Of Canada EPS - Earnings per Share 2010-2022 | NTIOF, n.d.). The consumer price index information for Canada was sourced from Statistics Canada (Consumer Price Index, Monthly, Not Seasonally Adjusted, 2023). The monthly data spans a duration of 2012 to 2022 and was consolidated into one data frame of 93 rows for analysis.
+The dataset has the variables Close, Volume, CPI, EPS, P.E, USDCAD price and SP500 price. The response variable for the research is the Close while the predictors are the Volume, CPI, EPS, PE and USD/CAD rate.
+ 
+Close: this is the closing price of the National Bank of Canada stock for each day on the Toronto stock market. The price is quoted in Canadian Dollars.
+
+Volume: this is the number of National Bank of Canada stocks that are traded on the stock exchange on the given day. There is no unit of measurement for the volume
+
+CPI: the consumer price index is a measure of the average change over time in the prices paid by urban consumers for a market basket of consumer goods and services. It is an accurate representation of the inflation changes over the years.
+
+EPS: the earnings per share (EPS) is an indicator of the financial health of the National Bank of Canada. It is calculated as the company’s profit divided by the outstanding number of its common stock. This is an indicator of the company’s profitability and the results are released on a quarterly basis.
+
+PE: this is the price earnings ratio is calculated by taking the latest closing price and dividing it by the most recent earnings per share (EPS) number. The PE is used as a valuation measure to assess whether a stock is over or undervalued.
+
+USDCAD price: this is the exchange rate quoted for the United States Dollar (USD) Canadian Dollar (CAD) currency pair. The rate tells of how many Canadian dollars are needed to purchase one U.S dollar. The price is quoted on a daily basis and the closing price was considered for this study.
+
+SP500 price: this is the closing price quoted for the S&P 500 index. The S&P 500 is a market capitalization weighted index of large-cap stocks. It has 500 constituents that represent a diverse set of companies from multiple companies. The price is quoted in USD.
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, include = FALSE}
+#
+getwd()
+setwd("C:/Users/hp/Desktop/DATA 603") 
+getwd()
+```
+
+```{r}
+#read the data
+bank = read.csv("bankofcanadaCP.csv")
+tail(bank,10)
+```
+
+The SP500Price, USDCADPrice, Close and Volume parameters are collected on a daily basis. However CPI and EPS values are released on a monthly basis. In order to align the information, the information for the last day of the month is taken.
+
+Converting date from string to data type:
+
+```{r warning=FALSE, message=FALSE}
+
+# Convert the Date column to a Date object using mdy() function from lubridate
+library(dplyr)
+library(lubridate)
+
+bank$Date <- mdy(bank$Date)
+head(bank)
+```
+
+Extract data for the last day of the month:
+
+```{r}
+df_last_day <- bank %>%
+  
+  filter(day(Date) == days_in_month(Date))
+head(df_last_day)
+```
+
+## 2.2 Approach  
+
+The approach is to start with a full multiple linear regression model, with all the variables included. A full model test is performed to confirm whether the multiple linear regression model is useful. Based on the outcome of the individual t-tests, assessment of the predictors’ significance is done.
+
+A first order model is then designed by assessing the contribution of a subset of predictors to the model. The choice of model at this stage is based on the adjusted R-squared, which measures how much of the variation in the response variable is explained by the changes in the predictor variables. To assess the best subsets of predictors in the first order model such measures as RMSE, Cp and AIC are computed and compared. The subset with the combination of the highest Adjusted R-squared, the lowest RMSE, Cp and AIC is preferred.
+
+Based on the outcome of selecting the best first order model, the interaction terms are assessed and added to the main effects to improve the model. The judgement of the significance of the interaction terms within the model is based on the p-values of each of the coefficients as well as the values of Adjusted R-squared and RMSE. The interaction terms whose p-value is insignificant are dropped from the model and model is reassessed. 
+
+Once the best first order model with interaction terms is selected, an analysis of the residuals is done. This entails testing the assumptions below:
+
+●	Linearity Assumption: assumes that there is a straight-line relationship between the predictors and the response variable. 
+●	Equal Variance assumption: the error terms have a constant variance. 
+●	Normality assumption: the residuals of the regression should be normally distributed. 
+●	Multicollinearity: check for any linearly correlated independent variables.
+●	Outliers: assess the presence of influential data points which can affect the regression results
+
+The results of each of the assumptions is based on to fine tune the model and conclude on the best multiple linear model to predict the National Bank of Canada stock price.
+
+##2.3 Workflow  
+
+The next steps are going to be done to find the best regression model:
+●	Evaluating overall model utility by using a global F test
+●	Performing Individual Coefficients Test (t-test) to check how significant their influence on response variable
+●	Finding the best first-order model comparing such measures as Adjusted R-squared, RMSE, Cp and AIC
+●	Finding the best first-order model with interaction terms, using individual t-test, Adjusted R-squared, and RMSE
+●	Testing the Linearity assumption by plotting the residuals versus predicted values. 
+●	Checking the homoscedasticity by creating the Scale-Location plot and doing the Breusch-Pagan test.
+●	Examining the Q-Q plot of residuals and the results of Shapiro Wilk test to evaluate if the errors between observed and fitted values are normally distributed.
+●	Checking if the problem of multicollinearity exists by using VIFs and scatterplots showing correlation between predictors.
+●	Using Cook’s distance and Leverage plots to find influential cases of outliers.
+●	Analysing how to solve the problems arising from results of testing the assumptions if applicable.
+●	Fitting the final model which pretends to the highest prediction accuracy among other models analysed
+
+##2.4 Workload Distribution
+
+The project work was equally distributed between three team members:
+
+●	Predictors, first order model, interaction and higher-order terms selection tasks. Making intermediate conclusions.
+●	Testing for the linearity, the homoscedasticity, and the Normality assumptions. Drawing intermediate conclusions. 
+●	Testing for the multicollinearity assumptions and outliers. Making intermediate conclusions.
+
+The common tasks which were done together:
+●	Data gathering
+●	Discussions about the topic chosen, methodology, steps of the project, future work suggestions
+●	Analysing and choosing the final model
+●	Making conclusions 
+
+#3. The Analysis
+
+## 3.1 Build the first order model 
+
+## 3.1.1 Fit the model containing all six variables
+
+
+```{r}
+firstmodel<-lm(Close~SP500Price + USDCADPrice + Volume + CPI  + EPS + PE, data=df_last_day) #Full model
+summary(firstmodel)
+```
+
+## 3.1.2 Test the hypothesis for the full model i.e the test of overall significance (at the significance level = 0.05).
+
+$H_{0} : \beta_{1} = \beta_{2} = \beta_{3} = \beta_{4} = \beta_{5}= \beta_{6} = 0$
+<p>$H_{a}$ : at least one $\beta_{i}$ is not zero (i = 1,2,3,4,5,6)</p>
+
+```{r}
+nullmodel<-lm(Close~1, data=df_last_day) #with only intersept
+anova(nullmodel,firstmodel) #Comparison of null model and full model
+```
+
+We can see that F-statistic = 241.93 with df = 2760 (p-value < 2.2e-16 < $\alpha$ = 0.05). It indicates that we should clearly reject the null hypothesis $H_{0}$. The large F-test suggests that at least one of the variables (SP500Price, USDCADPrice, Volume, CPI, EPS, PE) must be related to the stock close price. Based on the p-value, we also have extremely strong evidence that at least one of the variables is associated with the close price.
+
+## 3.1.3 Use Individual Coefficients Test (t-test) to find the best model
+
+$H_{0} : \beta_{i} = 0$
+<p>$H_{a} : \beta_{i}$ is not equal 0 (i=1,2,3,4,5,6)</p>
+
+```{r}
+summary(firstmodel)
+```
+
+Based on the results above, the individual P-values indicate that Volume and CPI do not have a significant influence on the closing price. It means we should clearly reject the null hypothesis for the SP500Price, USDCADPrice, EPS and PE. Therefore, we drop Volume and CPI in the model.
+
+## 3.1.4 Select the significant predictors for the first-order model
+
+```{r}
+reducedmodel<-lm(Close~SP500Price + USDCADPrice + EPS + PE, data=df_last_day) #reduced model
+summary(reducedmodel)
+```
+
+All the variables in the reduced model are significant based on the individual p-values < 0.05
+
+## 3.1.5 Select significant predictors for the first-order model based on the Adjusted R-squared, cp, AIC and RMSE
+
+A higher adjusted R-squared is preferred. The model with the smaller Cp, AIC and RMSE will be selected.
+
+```{r}
+library(olsrr)
+#Select the subset of predictors that do the best at meeting some well-defined objective
+#criterion, such 
+stock=ols_step_best_subset(reducedmodel, details=TRUE)
+
+# for the output interpretation
+AdjustedR<-c(stock$adjr)
+cp<-c(stock$cp)
+AIC<-c(stock$aic)
+cbind(AdjustedR,cp,AIC)
+```
+
+```{r}
+sigma<-c(firstmodel)
+model1<-lm(Close~SP500Price, data=df_last_day)
+model2<-lm(Close~SP500Price+ USDCADPrice, data=df_last_day)
+model3<-lm(Close~SP500Price+ USDCADPrice+EPS, data=df_last_day)
+model4<-lm(Close~SP500Price+ USDCADPrice+EPS+PE, data=df_last_day)
+
+variables<-c(1,2,3,4)
+sigma<-c(sigma(model1),sigma(model2),sigma(model3),sigma(model4))
+sigma_table <- data.frame(variables,sigma)
+sigma_table
+```
+
+The model with the 4 independent variables (SP500Price, USDCADPrice, EPS, PE) has the highest Adjusted R-squared of 0.9399, the least cp of 5 , the least AIC of 593.7456, and the least RMSE of 5.677.
+
+## 3.1.6 Improving the model
+
+### 3.1.6.1 Introduce Interaction terms into the model
+
+```{r}
+interactmodel <- lm(Close~(SP500Price + USDCADPrice + EPS + PE)^2, data=df_last_day)
+summary(interactmodel)
+```
+
+The significant interaction terms are SP500Price:PE and EPS:PE
+
+### 3.1.6.2 Excluding the interaction terms that are insignificant
+
+```{r}
+interactmodel2 <- lm(Close ~ SP500Price + USDCADPrice +  EPS + PE + SP500Price:PE + EPS:PE, data=df_last_day)
+summary(interactmodel2)
+```
+
+### 3.1.6.3 The problem with too high Adjusted R-squared in interaction model
+
+Adjusted R-squared is equal 1, which might indicate a problem. There might be too high correlation between predictors in the model, which we can check by analyzing all pairwise combinations of predictors in a scatterplot and using the VIF function.
+
+### 3.1.6.4  Checking correlation and regression between predictors
+```{r}
+library(GGally)
+price_predictors <- data.frame(df_last_day$Close, df_last_day$SP500Price, df_last_day$USDCADPrice, df_last_day$EPS, df_last_day$PE)
+ggpairs(price_predictors,lower = list(continuous = "smooth_loess", combo =
+"facethist", discrete = "facetbar", na = "na"))
+```
+
+From ggpairs plot, it can bee seen a high correlation = 0.957 (>0.8) between SP500Price and Close, of which the Close is the response variable.
+
+```{r}
+# The variance inflation factor
+library(mctest)
+imcdiag(reducedmodel, method="VIF")
+```
+
+The VIF method didn't detect any multicollinearity. The high Adjusted R-squared in the interaction model is due to the interaction terms. 
+
+### 3.1.6.5 Testing for higher-order models
+
+Testing for higher-order models:
+
+```{r}
+higherordermodel <- lm(Close ~ SP500Price + USDCADPrice +  EPS + I(EPS^2) + I(EPS^3) + PE + I(PE^2) + I(PE^3), data=df_last_day)
+summary(higherordermodel)
+```
+
+The model with cubic terms for EPS and PE variables has the the highest Adjusted R-squared among other tested higher-order models.
+
+
+# 3.2. Model diagnostics for the best fitted model
+
+## 3.2.1 Linearity assumption 
+
+The linear regression model assumes that there is a straight-line relationship between the predictors and the response. If the true relationship is far from linear, then virtually all of the conclusions that we draw from the fit are suspect. In addition, the prediction accuracy of the model can be significantly reduced.
+
+```{r}
+library(ggplot2)
+
+bestfirstmodel<-lm(Close~SP500Price + USDCADPrice + EPS + PE, data=df_last_day) #best first order model
+interactmodel2 <- lm(Close ~ SP500Price + USDCADPrice +  EPS + PE + SP500Price:PE + EPS:PE, data=df_last_day) #best interaction model
+higherordermodel <- lm(Close ~ SP500Price + USDCADPrice +  EPS + I(EPS^2) + I(EPS^3) + PE + I(PE^2) + I(PE^3), data=df_last_day) #cubic model
+
+
+#The residuals versus predicted (or fitted) values plots
+
+ggplot(bestfirstmodel, aes(x=.fitted, y=.resid)) +
+geom_point() + geom_smooth()+
+geom_hline(yintercept = 0)+
+ggtitle('Residuals Vs fitted values for first order model')  
+
+ggplot(interactmodel2, aes(x=.fitted, y=.resid)) +
+geom_point() + geom_smooth()+
+geom_hline(yintercept = 0)+
+ggtitle('Residuals Vs fitted values for interaction model')  
+
+ggplot(higherordermodel, aes(x=.fitted, y=.resid)) +
+geom_point() + geom_smooth()+
+geom_hline(yintercept = 0)+
+ggtitle('Residuals Vs fitted values for cubic model')  
+
+```
+
+The first order model and cubic models have some patterns in the residuals, indicating that there is a likelihood of non-linearity. 
+
+The model with interaction terms, on the other hand, has a more random scatter. The improved spread in the second model is due to the interaction terms.
+
+
+## 3.2.2 Assumption of Equal Variance - Homoscedasticity
+
+This plot is a diagnostic plot for checking the  homoscedasticity assumptions of the linear regression model. It shows the residuals (y-axis) against the fitted values (x-axis), where the fitted values are the predicted values from the model. If the model satisfies the homoscedasticity assumptions, the plot should show a random scatter of points with no obvious pattern or trend.
+
+```{r}
+bestfirstmodel<-lm(Close~SP500Price + USDCADPrice + EPS + PE, data=df_last_day) #best first order model
+interactmodel2 <- lm(Close ~ SP500Price + USDCADPrice +  EPS + PE + SP500Price:PE + EPS:PE, data=df_last_day) #best interaction model
+higherordermodel <- lm(Close ~ SP500Price + USDCADPrice +  EPS + I(EPS^2) + I(EPS^3) + PE + I(PE^2) + I(PE^3), data=df_last_day) #cubic model
+
+#scale-location plots for three models
+
+ggplot(bestfirstmodel, aes(x=.fitted, y=sqrt(abs(.stdresid)))) + geom_point() + geom_smooth()+geom_hline(yintercept = 0) + ggtitle("Scale-Location plot : Standardized Residual vs Fitted values: First order model")
+
+ggplot(interactmodel2, aes(x=.fitted, y=sqrt(abs(.stdresid)))) + geom_point() + geom_smooth()+geom_hline(yintercept = 0) + ggtitle("Scale-Location plot : Standardized Residual vs Fitted values: Interaction model")
+
+ggplot(higherordermodel, aes(x=.fitted, y=sqrt(abs(.stdresid)))) + geom_point() + geom_smooth()+geom_hline(yintercept = 0) + ggtitle("Scale-Location plot : Standardized Residual vs Fitted values: Cubic model")
+
+
+```
+
+```{r}
+#Testing for Homoscedasticity - Breusch-Pagan test for the first-order model
+library(lmtest)
+bptest(bestfirstmodel)
+```
+
+For the first-order model, the Scale-location plot is not conclusive at first sight. From the Breusch-Pagan test, the p-value 0.3676 is greater than 0.05 hence we fail to reject the null hypothesis that heteroscedasticity is not present. We therefore accept the null hypothesis and conclude that that the equal variance assumption is met by the first order model.
+
+
+```{r}
+#Testing for Homoscedasticity Homoscedasticity - Breusch-Pagan test for the interaction model
+library(lmtest)
+bptest(interactmodel2)
+```
+
+The Scale-location does not show the pattern of heteroscedasticity, at first sight. However, the Breusch-Pagan test, the p-value 0.044 is less than 0.05 hence we reject the null hypothesis that heteroscedasticity is not present. We therefore accept the alternative hypothesis that heteroscedasticity is present. 
+
+```{r}
+#Testing for Homoscedasticity - Breusch-Pagan test for the cubic model
+library(lmtest)
+bptest(higherordermodel)
+```
+
+The Scale-location plot for higher-order model shows a narrower spread of residuals along the x-axis, indicating homoscedasticity. From the Breusch-Pagan test, the p-value = 0.001 is less than 0.05 hence we reject the null hypothesis that heteroscedasticity is not present. We therefore conclude that the equal variance assumption is not met.
+
+## 3.2.3 Normality Assumption with Q-Q plot of Residual and Shapiro Wilk Test
+
+Normal Q-Q: This plot shows if the residuals follow a normal distribution. Ideally, we want to see the points fall close to the diagonal line, indicating that the residuals are normally distributed.
+
+
+```{r}
+bestfirstmodel<-lm(Close~SP500Price + USDCADPrice + EPS + PE, data=df_last_day) #best first order model
+
+# Check the normality assumption with Q-Q plot of residuals
+
+qqnorm(resid(bestfirstmodel))
+qqline(resid(bestfirstmodel))
+
+qqnorm(resid(interactmodel2))
+qqline(resid(interactmodel2))
+
+qqnorm(resid(higherordermodel))
+qqline(resid(higherordermodel))
+```
+
+```{r}
+#Shapiro-Wilk test for the first-order model
+shapiro.test(residuals(bestfirstmodel))
+```
+
+From the QQ Plot,  some data points on upper end slightly deviate from the reference line. The Shapiro-Wilk normality test with a p-value = 0.051 is borderline above the significance level of 0.05. Therefore, the normality assumption can be confirmed.
+
+
+```{r}
+#Shapiro-Wilk test for the interaction model
+shapiro.test(residuals(interactmodel2))
+```
+
+From the QQ Plot, data points on both ends still deviate from the reference line. Also, Shapiro-Wilk normality test confirms that the residuals are not normally distributed as the p-value = 8.876-09 (<0.05). Therefore, the normality assumption cannot be confirmed.
+
+
+```{r}
+#Shapiro-Wilk test for the cubic model
+shapiro.test(residuals(higherordermodel))
+```
+
+From the QQ Plot, data points on both ends still deviate from the reference line. Furthermore, Shapiro-Wilk normality test confirms that the residuals are not normally distributed as the p-value = 0.01789 (<0.05). Therefore, the normality assumption cannot be confirmed.
+
+## 3.2.4 Multicollinearity
+
+```{r}
+library(mctest)
+#model with main effects
+bestfirstmodel<-lm(Close~SP500Price + USDCADPrice + EPS + PE, data=df_last_day) #best first order model
+
+imcdiag(bestfirstmodel, method="VIF")
+```
+
+We already checked the multicollinearity in section 1.6.4, and we can see that VIF for each variable is < 10, the collinearity is not detected.
+
+## 3.2.5 Outliers
+
+Cook's distance is a measure of the influence of each observation on the fitted values of the regression model. High values of Cook's distance indicate that the observation may have an undue influence on the fitted values and may be an outlier
+
+#### To compute Cook's distance for each observation:
+
+```{r}
+cooksd <- cooks.distance(bestfirstmodel) #to compute Cook's distance for each observation.
+head(cooksd,20)
+```
+
+#### To create a leverage plot
+
+```{r}
+plot(bestfirstmodel, which = 5)
+
+```
+
+#### Identify outliers
+
+```{r}
+cutoff <- 4/(nrow(data)-length(bestfirstmodel$coefficients)-1)
+outliers <- which(cooksd > cutoff)
+head(outliers,20)
+```
+```{r}
+leverage <- hatvalues(bestfirstmodel)
+head(leverage,20)
+```
+
+Leverage values are a measure of how extreme the predictor variable values are for a given observation. It is a measure of the potential influence of a given observation on the regression line. A high leverage value indicates that the predictor values for that observation are far from the average predictor values, and therefore the observation has the potential to have a large effect on the regression line. However, high leverage values do not necessarily mean that the observation is an outlier or influential point. It just means that the observation has extreme predictor variable values.
+
+#### Plot of Cook's distance
+
+```{r}
+
+#Cook's distance for the first-order model
+bank[cooks.distance(bestfirstmodel)>0.5,]
+plot(bestfirstmodel,pch=18,col="red",which=c(4))
+
+#Cook's distance for the interaction model
+bank[cooks.distance(interactmodel2)>0.5,]
+plot(interactmodel2,pch=18,col="red",which=c(4))
+
+#Cook's distance for the cubic model
+bank[cooks.distance(higherordermodel)>0.5,]
+plot(higherordermodel,pch=18,col="red",which=c(4))
+```
+
+The outliers aren't influential in all three models, since their Cook's distance is less than 0.5. The outliers were maintained in the data set. 
+
+
+## 3.2.6 Box-Cox transformations
+
+In order to attempt to solve the problems with unequal variances and non-normality, we use Box-Cox transformations of the interaction model. Box-Cox transformation is a statistical method that assumes transforming the response variable so the data follows a normal distribution. The expression below presents  the Box-Cox functions transformations for various values of lambda (the transformation parameter for response variable):
+
+<p>$Y^\lambda_{i} = (Y^\lambda - 1)/\lambda$, if $\lambda$ is not 0</p>
+<p>$Y^\lambda_{i}$ = log<sub>e</sub>(Y), if $\lambda$ is 0</p>
+
+```{r}
+library(MASS) #for the boxcox()function
+bc=boxcox(interactmodel2,lambda=seq(-1.5,1.5))
+```
+
+From the output we found that the best lambda is close to one. 
+
+```{r}
+#extract best lambda
+
+bestlambda=bc$x[which(bc$y==max(bc$y))]
+bestlambda
+```
+
+```{r}
+
+# the output, when we choose λ=0
+bcmodel_null=lm(log(Close)~SP500Price + USDCADPrice + EPS + PE + SP500Price:PE + EPS:PE,data=df_last_day)
+summary(bcmodel_null)
+
+
+# the output, when we choose λ=1.015152
+bcmodel=lm((((Close^(1.015152))-1)/(1.015152))~SP500Price + USDCADPrice + EPS + PE + SP500Price:PE + EPS:PE,data=df_last_day)
+summary(bcmodel)
+
+```
+
+```{r}
+#Shapiro-Wilk test for the interaction model after box-cox transformations
+shapiro.test(residuals(bcmodel))
+```
+```{r}
+#Testing for Homoscedasticity - Breusch-Pagan test for the interaction model after box-cox transformations
+library(lmtest)
+bptest(bcmodel)
+```
+As a result, we can see that after box-cox transformation of the response variable, some of predictors and interactions in the model lost their significance. Furthermore, the problems with non-normality and heteroscedasticity still exist. Therefore, we cannot use this model for predictive purposes.  
+
+
+
+# 4 Final model
+
+A comparison of the three models revealed that:
+
+The lowest RMSE is presented in the interactive model. Therefore, if we consider the Adjusted R-squared, RMSE measures, then the best model is Interactive model.
+
+However, the Non-Normality and Heteroscedasticity problems exist for both - interactive and cubic models. It means the prediction accuracy of the models can be significantly reduced.
+
+The first order model, on the other hand, satisfied the Normality, equal variance, multicollinearity and outliers assumptions. The linearity assumption is the only assumption that wasn't met by the first order model.
+
+Given the precedence that the assumptions take over the Adjusted R-squared, CIP and other mathematical values, the best model is the first order model
+
+Best model for the project:
+
+Close ~ SP500Price + USDCADPrice + EPS + PE
+
+```{r}
+#best first order model
+coefficients(bestfirstmodel)
+```
+
+# 6.	CONCLUSION AND DISCUSSION 
+
+# 6.1 Approach  
+
+The approach which was used in our project enabled us to perform a series of successive steps that led to the creation of the final best-fitted regression model. During the process of variables and model selection such methods as F-test to assess the overall significance of the models, individual t-test for evaluating the predictors significance were applied. These methods in combination with assessing such measures as Adjusted R-squared, RMSE, cp and AIC were useful to build and choose the best first-order model as well as significant interaction terms. 
+
+During the Regression Model Diagnostics stage, it was effective to use visualization such as the residuals versus predicted plot, the Scale-Location plot, the Q-Q plot to understand the patterns in data distribution overall while the Breusch-Pagan test and Shapiro Wilk test gave as the evidence to make the final conclusion about the assumptions. The approach was to go deeper step by step into the different aspects of regression model analysis which we found effective. Throughout the process we sometimes went back to the previous steps to retest the models which were created later, for example, at the diagnostic stage after adding to the model higher-order terms. The change to our approach that could have been taken is to conduct the test for multicollinearity at the initial step to exclude some redundant calculations and tests. In general, the approach that we took was efficient and helped us gradually come to the final conclusion about the best-fitted model.
+
+# 6.2 Future Work
+
+The possible problem which we might not take into account is that the assumption of independent errors is violated. It could happen as our variables are time-series data, in other words, it was observed sequentially over a period of time. Therefore, the time-series analysis of our data should be done for future work. 
+
+Another point which might be considered is searching and selecting categorical independent variables for our model such as an overall character of messages posted on the Twitter social media regarding the National Bank of Canada. The possible values for this variable are “positive”, “negative” or “neutral” characters of messages. Exploration of other independent variables that haven’t been captured in this study should also be considered.
+
+# 7.	REFERENCES
+ 
+Chen, J., & Murry, C. (n.d.). What Is the Stock Market, What Does It Do, and How Does It Work? Investopedia. Retrieved April 4, 2023, from https://www.investopedia.com/terms/s/stockmarket.asp
+
+Consumer Price Index, monthly, not seasonally adjusted. (2023). Statistique Canada. Retrieved April 4, 2023, from https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=1810000401
+
+National Bank Of Canada EPS - Earnings per Share 2010-2022 | NTIOF. (n.d.). Macrotrends. Retrieved April 4, 2023, from https://www.macrotrends.net/stocks/charts/NTIOF/national-bank-of-canada/eps-earnings-per-share-diluted
+
+National Bank of Canada (NA.TO) Stock Historical Prices & Data. (n.d.). Yahoo Finance. Retrieved April 4, 2023, from https://ca.finance.yahoo.com/quote/NA.TO/history?p=NA.TO
+
+S&P 500 (^GSPC) Historical Data. (n.d.). Yahoo Finance. Retrieved April 4, 2023, from https://ca.finance.yahoo.com/quote/%5EGSPC/history?p=%5EGSPC
+
+
+
+
+
